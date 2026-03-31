@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Capacitación GIP — Serviplagas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a5632;
+      --primary-light: #2a7a48;
+      --accent: #f0a500;
+      --bg: #f5f7f5;
+      --card: #ffffff;
+      --text: #222;
+      --text-light: #555;
+      --danger: #c0392b;
+      --success: #27ae60;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header {
+      background: var(--primary);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .header img { height: 40px; width: 40px; object-fit: contain; border-radius: 6px; background: #fff; padding: 2px; }
+    .header-text h1 { font-size: 15px; font-weight: 700; line-height: 1.2; }
+    .header-text p { font-size: 11px; opacity: .85; }
+
+    /* Progress */
+    .progress-bar { height: 4px; background: rgba(255,255,255,.2); }
+    .progress-fill { height: 100%; background: var(--accent); transition: width .4s ease; }
+
+    /* Slides */
+    .slide-container { flex: 1; padding: 16px; display: flex; flex-direction: column; }
+    .slide { display: none; flex-direction: column; gap: 14px; animation: fadeIn .3s ease; }
+    .slide.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .slide-number { font-size: 11px; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    .slide h2 { font-size: 20px; color: var(--primary); line-height: 1.3; }
+    .slide h3 { font-size: 16px; color: var(--primary-light); margin-top: 4px; }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card p, .card li { font-size: 14px; line-height: 1.6; color: var(--text-light); }
+    .card ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+    .card li::marker { color: var(--primary); }
+
+    .callout {
+      background: #fff8e1;
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #6d5600;
+    }
+    .callout.danger { background: #fdecea; border-color: var(--danger); color: #7a1a10; }
+    .callout.success { background: #e8f5e9; border-color: var(--success); color: #1b5e20; }
+    .callout strong { display: block; margin-bottom: 4px; }
+
+    .module-img { width: 100%; border-radius: 12px; margin-bottom: 12px; }
+
+    .step-list { display: flex; flex-direction: column; gap: 8px; }
+    .step {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--card); border-radius: 10px; padding: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .step-num {
+      min-width: 28px; height: 28px; border-radius: 50%;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .step p { font-size: 14px; line-height: 1.5; color: var(--text-light); }
+
+    /* Navigation */
+    .nav {
+      padding: 12px 16px 20px;
+      display: flex; gap: 10px;
+      background: var(--bg);
+      position: sticky; bottom: 0;
+    }
+    .nav button {
+      flex: 1; padding: 14px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-back { background: #e8e8e8; color: var(--text); }
+    .btn-next { background: var(--primary); color: #fff; }
+    .btn-next:active { background: var(--primary-light); transform: scale(.98); }
+    .btn-back:disabled, .btn-next:disabled { opacity: .4; pointer-events: none; }
+
+    /* Quiz */
+    .quiz-question { margin-bottom: 16px; }
+    .quiz-question p { font-size: 15px; font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
+    .quiz-option {
+      display: block; width: 100%; text-align: left;
+      padding: 12px 14px; margin-bottom: 8px;
+      background: var(--card); border: 2px solid #e0e0e0;
+      border-radius: 10px; font-size: 14px; cursor: pointer;
+      transition: all .2s; line-height: 1.4;
+    }
+    .quiz-option:active { transform: scale(.98); }
+    .quiz-option.selected { border-color: var(--primary); background: #e8f5e9; }
+    .quiz-option.correct { border-color: var(--success); background: #e8f5e9; }
+    .quiz-option.wrong { border-color: var(--danger); background: #fdecea; }
+
+    /* Form */
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .form-group input {
+      width: 100%; padding: 12px 14px; border: 2px solid #ddd;
+      border-radius: 10px; font-size: 15px; outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+
+    .btn-full {
+      width: 100%; padding: 15px; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:active { background: var(--primary-light); }
+    .btn-accent { background: var(--accent); color: #fff; margin-top: 10px; }
+
+    .result-box {
+      text-align: center;
+      padding: 20px;
+    }
+    .result-box .score { font-size: 48px; font-weight: 800; color: var(--primary); }
+    .result-box .score-label { font-size: 14px; color: var(--text-light); margin-top: 4px; }
+
+    /* Certificate preview */
+    .cert-preview {
+      background: #fff;
+      border: 3px solid var(--primary);
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .cert-preview h3 { color: var(--primary); font-size: 18px; margin-bottom: 6px; }
+    .cert-preview .cert-name { font-size: 22px; font-weight: 800; color: var(--primary); margin: 12px 0; }
+    .cert-preview p { font-size: 12px; color: var(--text-light); line-height: 1.5; }
+
+    .hidden { display: none !important; }
+
+    /* Welcome screen */
+    .welcome {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .welcome img { width: 100px; height: 100px; object-fit: contain; margin-bottom: 16px; }
+    .welcome h2 { font-size: 22px; color: var(--primary); margin-bottom: 8px; }
+    .welcome p { font-size: 14px; color: var(--text-light); line-height: 1.6; }
+    .feature-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; text-align: left; }
+    .feature-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-light); }
+    .feature-icon { width: 32px; height: 32px; border-radius: 8px; background: #e8f5e9; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <img src="logo.png" alt="Serviplagas">
+      <div class="header-text">
+        <h1>Capacitación GIP</h1>
+        <p>Serviplagas — Gestión Integrada de Plagas</p>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress" style="width: 0%"></div></div>
+
+    <div class="slide-container" id="slideContainer">
+      <!-- SLIDE 0: Welcome -->
+      <div class="slide active" data-slide="0">
+        <div class="welcome">
+          <img src="logo.png" alt="Serviplagas">
+          <h2>Capacitación Gestión Integrada de Plagas (GIP)</h2>
+          <p>Capacitación para técnicos de Serviplagas.</p>
+        </div>
+        <div class="card">
+          <div class="feature-list">
+            <div class="feature-item"><div class="feature-icon">📋</div> 6 módulos cortos</div>
+            <div class="feature-item"><div class="feature-icon">📝</div> Quiz final</div>
+            <div class="feature-item"><div class="feature-icon">🏆</div> Certificado en PDF</div>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>⏱️ Duración: 15–20 minutos</strong>
+          Lee con atención y al final aprueba el quiz para tu certificado.
+        </div>
+      </div>
+
+      <!-- SLIDE 1: Fundamentos GIP -->
+      <div class="slide" data-slide="1">
+        <span class="slide-number">Módulo 1 de 6</span>
+        <h2>¿Qué es el GIP?</h2>
+        <img src="modulo 1.jpeg" alt="Módulo 1" class="module-img">
+        <div class="card">
+          <p><strong>GIP = Gestión Integrada de Plagas.</strong> Es un método que combina varias técnicas (físicas, químicas, biológicas) para <strong>controlar plagas de forma segura</strong>, cuidando la salud de las personas y el medio ambiente.</p>
+        </div>
+        <h3>Principios clave</h3>
+        <div class="card">
+          <ul>
+            <li>Primero identificar la plaga</li>
+            <li>Usar trampas para medir el problema</li>
+            <li>Combinar varios métodos de control</li>
+            <li>Usar químicos solo cuando sea necesario</li>
+            <li>Prevenir es mejor que corregir</li>
+          </ul>
+        </div>
+        <h3>¿Por qué es importante?</h3>
+        <div class="card">
+          <ul>
+            <li>Menos riesgos para la salud</li>
+            <li>Menos costos por reinfestación</li>
+            <li>Cumple con normas como BPM, HACCP e ISO</li>
+            <li>Mejor resultado a largo plazo</li>
+          </ul>
+        </div>
+        <div class="callout danger">
+          <strong>⚠️ Recuerda</strong>
+          El GIP NO se puede reemplazar solo con químicos.
+        </div>
+      </div>
+
+      <!-- SLIDE 2: Metodología Operativa -->
+      <div class="slide" data-slide="2">
+        <span class="slide-number">Módulo 2 de 6</span>
+        <h2>¿Cómo trabajamos?</h2>
+        <img src="modulo 2.jpeg" alt="Módulo 2" class="module-img">
+
+        <h3>Paso a paso</h3>
+        <div class="step-list">
+          <div class="step"><div class="step-num">1</div><p><strong>Diagnóstico:</strong> Identificar la plaga y revisar áreas críticas</p></div>
+          <div class="step"><div class="step-num">2</div><p><strong>Monitoreo:</strong> Usar trampas para medir el nivel del problema</p></div>
+          <div class="step"><div class="step-num">3</div><p><strong>Intervención:</strong> Aplicar el tratamiento adecuado</p></div>
+          <div class="step"><div class="step-num">4</div><p><strong>Evaluación:</strong> Verificar que funcionó</p></div>
+          <div class="step"><div class="step-num">5</div><p><strong>Seguimiento:</strong> Continuar revisando</p></div>
+        </div>
+
+        <h3>Tipos de trampas</h3>
+        <div class="card">
+          <ul>
+            <li><strong>Pegamento:</strong> insectos rastreros</li>
+            <li><strong>Luz UV-A:</strong> insectos voladores</li>
+            <li><strong>Golpe:</strong> roedores</li>
+            <li><strong>Jaulas:</strong> captura sin químicos</li>
+          </ul>
+        </div>
+
+        <h3>Uso de plaguicidas</h3>
+        <div class="card">
+          <ul>
+            <li>Solo cuando las trampas lo indiquen</li>
+            <li>Productos autorizados (INVIMA)</li>
+            <li>Baja toxicidad y aplicación dirigida</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- SLIDE 3: Bioseguridad y Residuos -->
+      <div class="slide" data-slide="3">
+        <span class="slide-number">Módulo 3 de 6</span>
+        <h2>Bioseguridad y Residuos</h2>
+        <img src="modulo 3.jpeg" alt="Módulo 3" class="module-img">
+
+        <h3>Triple lavado del envase</h3>
+        <div class="step-list">
+          <div class="step"><div class="step-num">1</div><p>Vaciar el envase en la bomba</p></div>
+          <div class="step"><div class="step-num">2</div><p>Llenar con agua hasta ¼</p></div>
+          <div class="step"><div class="step-num">3</div><p>Agitar fuerte y echar en la bomba</p></div>
+          <div class="step"><div class="step-num">4</div><p>Repetir 3 veces en total</p></div>
+        </div>
+        <div class="callout success">
+          <strong>✅ Tip</strong>
+          Usa el agua de enjuague en la mezcla de aplicación.
+        </div>
+
+        <h3>¿Qué hacer con el envase vacío?</h3>
+        <div class="card">
+          <ul>
+            <li>Perforarlo o destruirlo</li>
+            <li>Devolver a la empresa o gestor autorizado</li>
+          </ul>
+        </div>
+        <div class="callout danger">
+          <strong>⚠️ Prohibido</strong>
+          Tirar residuos al agua · Reutilizar envases
+        </div>
+      </div>
+
+      <!-- SLIDE 4: Mantenimiento y Limpieza -->
+      <div class="slide" data-slide="4">
+        <span class="slide-number">Módulo 4 de 6</span>
+        <h2>Limpieza de Equipos</h2>
+        <img src="modulo 4.jpeg" alt="Módulo 4" class="module-img">
+
+        <div class="card">
+          <ul>
+            <li>Lavar equipos después de cada servicio</li>
+            <li>Revisar que no haya fugas</li>
+            <li>Limpiar el EPP después de cada uso</li>
+            <li>Guardar equipos en lugar seguro</li>
+            <li>Lavar el uniforme aparte de la ropa diaria</li>
+            <li>Siempre usar guantes</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- SLIDE 5: Seguridad del Técnico y EPP -->
+      <div class="slide" data-slide="5">
+        <span class="slide-number">Módulo 5 de 6</span>
+        <h2>Tu Seguridad (EPP)</h2>
+        <img src="modulo 5.jpeg" alt="Módulo 5" class="module-img">
+
+        <h3>Siempre debes usar:</h3>
+        <div class="card">
+          <ul>
+            <li>Mascarilla o respirador</li>
+            <li>Guantes</li>
+            <li>Ropa de protección</li>
+            <li>Gafas de protección (si hay riesgo)</li>
+          </ul>
+        </div>
+
+        <h3>Reglas durante el servicio:</h3>
+        <div class="card">
+          <ul>
+            <li>No comer, beber ni fumar</li>
+            <li>No aplicar sobre personas o animales</li>
+            <li>Proteger alimentos del cliente</li>
+            <li>Leer siempre la etiqueta del producto</li>
+            <li>Preparar solo lo que se va a usar</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- SLIDE 6: Respuesta ante Emergencias -->
+      <div class="slide" data-slide="6">
+        <span class="slide-number">Módulo 6 de 6</span>
+        <h2>Emergencias</h2>
+        <img src="modulo 6.jpeg" alt="Módulo 6" class="module-img">
+
+        <div class="card">
+          <ul>
+            <li><strong>Piel:</strong> Lavar con mucha agua, quitar ropa manchada</li>
+            <li><strong>Ojos:</strong> Lavar con agua por 15 minutos</li>
+            <li><strong>Inhalación:</strong> Ir al aire libre y descansar</li>
+            <li><strong>Ingestión:</strong> No provocar vómito, ir al médico ya</li>
+          </ul>
+        </div>
+        <div class="callout danger">
+          <strong>⚠️ Muy importante</strong>
+          Siempre lleva la etiqueta del producto al médico.
+        </div>
+      </div>
+
+      <!-- SLIDE 7: Quiz -->
+      <div class="slide" data-slide="7">
+        <span class="slide-number">Evaluación</span>
+        <h2>Quiz de Conocimiento</h2>
+        <p style="font-size:14px;color:var(--text-light);margin-bottom:4px;">Responde las 10 preguntas. Necesitas 7/10 para aprobar.</p>
+
+        <div id="quizContainer"></div>
+      </div>
+
+      <!-- SLIDE 8: Results -->
+      <div class="slide" data-slide="8">
+        <span class="slide-number">Resultados</span>
+        <h2>Resultado de la Evaluación</h2>
+
+        <div class="card result-box">
+          <div class="score" id="scoreValue">0/10</div>
+          <div class="score-label">Respuestas correctas</div>
+        </div>
+
+        <div id="resultMessage"></div>
+
+        <div id="certSection">
+          <h3 style="margin-top:10px;">Obtener Certificado</h3>
+          <div class="card" style="margin-top:8px;">
+            <div class="form-group">
+              <label>Nombre completo</label>
+              <input type="text" id="fullName" placeholder="Ej: Juan Pablo García López" autocomplete="name">
+            </div>
+            <button class="btn-full btn-primary" onclick="generateCertificate()">Descargar Certificado PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav">
+      <button class="btn-back" id="btnBack" onclick="prevSlide()" disabled>← Atrás</button>
+      <button class="btn-next" id="btnNext" onclick="nextSlide()">Comenzar →</button>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──
+    let currentSlide = 0;
+    const totalSlides = 9; // 0-8
+    const totalContent = 7; // 0-6 are content, 7=quiz, 8=results
+    let quizAnswers = {};
+    let quizScore = 0;
+    let quizSubmitted = false;
+
+    // ── Quiz Data ──
+    const quizQuestions = [
+      {
+        q: "¿Qué es la Gestión Integrada de Plagas (GIP)?",
+        opts: [
+          "Uso exclusivo de plaguicidas para eliminar plagas",
+          "Estrategia que integra métodos físicos, químicos, biológicos y culturales",
+          "Técnica de fumigación masiva",
+          "Programa de limpieza general"
+        ],
+        answer: 1
+      },
+      {
+        q: "¿Cuál es el enfoque principal del GIP?",
+        opts: [
+          "Correctivo sobre el preventivo",
+          "Uso masivo de químicos",
+          "Preventivo sobre el correctivo",
+          "Eliminación total de todas las especies"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Qué tipo de trampa se usa para insectos voladores?",
+        opts: [
+          "Trampas de pegamento",
+          "Trampas de golpe",
+          "Trampas de luz UV-A",
+          "Jaulas de captura"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Cuál es la secuencia correcta de la metodología operativa?",
+        opts: [
+          "Intervención → Diagnóstico → Monitoreo",
+          "Monitoreo → Evaluación → Diagnóstico",
+          "Diagnóstico → Monitoreo → Intervención → Evaluación → Seguimiento",
+          "Seguimiento → Intervención → Monitoreo"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Cuántas veces se repite el procedimiento de triple lavado?",
+        opts: [
+          "Una vez",
+          "Dos veces",
+          "Tres veces",
+          "Cuatro veces"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Qué se debe hacer con los envases vacíos de plaguicidas?",
+        opts: [
+          "Reutilizarlos para almacenar agua",
+          "Arrojarlos a la basura común",
+          "Perforarlos/destruirlos y entregarlos a gestor autorizado",
+          "Guardarlos para uso personal"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Cuáles son elementos obligatorios del EPP?",
+        opts: [
+          "Solo guantes",
+          "Respirador, guantes, ropa de protección y protección ocular",
+          "Solo mascarilla y botas",
+          "Casco y chaleco reflectante"
+        ],
+        answer: 1
+      },
+      {
+        q: "¿Qué está PROHIBIDO hacer durante una aplicación?",
+        opts: [
+          "Leer la etiqueta del producto",
+          "Usar guantes de protección",
+          "Comer, beber o fumar",
+          "Revisar el equipo de aplicación"
+        ],
+        answer: 2
+      },
+      {
+        q: "En caso de contacto del producto con los ojos, ¿cuánto tiempo se debe lavar?",
+        opts: [
+          "5 minutos",
+          "10 minutos",
+          "15 minutos",
+          "20 minutos"
+        ],
+        answer: 2
+      },
+      {
+        q: "¿Qué se debe presentar al personal médico en caso de intoxicación?",
+        opts: [
+          "El recibo de compra del producto",
+          "La etiqueta o ficha técnica del producto",
+          "La factura del servicio",
+          "La orden de trabajo"
+        ],
+        answer: 1
+      }
+    ];
+
+    // ── Render Quiz ──
+    function renderQuiz() {
+      const container = document.getElementById('quizContainer');
+      // Shuffle options for each question
+      quizQuestions.forEach(q => {
+        const indices = q.opts.map((_, i) => i);
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        q.opts = indices.map(i => q.opts[i]);
+        q.answer = indices.indexOf(q.answer);
+      });
+      container.innerHTML = quizQuestions.map((q, i) => `
+        <div class="quiz-question" id="qq${i}">
+          <p>${i + 1}. ${q.q}</p>
+          ${q.opts.map((opt, j) => `
+            <button class="quiz-option" data-q="${i}" data-opt="${j}" onclick="selectOption(${i}, ${j})">${opt}</button>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    function selectOption(qIndex, optIndex) {
+      if (quizSubmitted) return;
+      quizAnswers[qIndex] = optIndex;
+      // Visual feedback
+      document.querySelectorAll(`#qq${qIndex} .quiz-option`).forEach((btn, j) => {
+        btn.classList.toggle('selected', j === optIndex);
+      });
+    }
+
+    function submitQuiz() {
+      if (Object.keys(quizAnswers).length < quizQuestions.length) {
+        alert('Por favor responda todas las preguntas antes de continuar.');
+        return false;
+      }
+      quizSubmitted = true;
+      quizScore = 0;
+
+      quizQuestions.forEach((q, i) => {
+        const btns = document.querySelectorAll(`#qq${i} .quiz-option`);
+        btns.forEach((btn, j) => {
+          btn.style.pointerEvents = 'none';
+          if (j === q.answer) btn.classList.add('correct');
+          if (quizAnswers[i] === j && j !== q.answer) btn.classList.add('wrong');
+        });
+        if (quizAnswers[i] === q.answer) quizScore++;
+      });
+
+      return true;
+    }
+
+    function showResults() {
+      document.getElementById('scoreValue').textContent = `${quizScore}/10`;
+      const msgEl = document.getElementById('resultMessage');
+      const certSection = document.getElementById('certSection');
+
+      if (quizScore >= 7) {
+        msgEl.innerHTML = `<div class="callout success"><strong>🎉 ¡Felicidades!</strong>Ha aprobado la evaluación satisfactoriamente. Puede descargar su certificado a continuación.</div>`;
+        certSection.classList.remove('hidden');
+      } else {
+        msgEl.innerHTML = `<div class="callout danger"><strong>⚠️ No alcanzó el puntaje mínimo</strong>Necesita al menos 7/10 para aprobar. Revise los módulos y vuelva a intentarlo.</div>`;
+        certSection.classList.add('hidden');
+      }
+    }
+
+    // ── Navigation ──
+    function updateSlide() {
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      document.querySelector(`[data-slide="${currentSlide}"]`).classList.add('active');
+
+      const pct = currentSlide === 0 ? 0 : Math.round((currentSlide / (totalSlides - 1)) * 100);
+      document.getElementById('progress').style.width = pct + '%';
+
+      const btnBack = document.getElementById('btnBack');
+      const btnNext = document.getElementById('btnNext');
+
+      btnBack.disabled = currentSlide === 0;
+
+      if (currentSlide === 0) {
+        btnNext.textContent = 'Comenzar →';
+      } else if (currentSlide < 7) {
+        btnNext.textContent = 'Siguiente →';
+      } else if (currentSlide === 7) {
+        btnNext.textContent = 'Enviar respuestas →';
+      } else {
+        btnNext.classList.add('hidden');
+      }
+      if (currentSlide < 8) btnNext.classList.remove('hidden');
+
+      // Scroll to top
+      document.querySelector('.slide-container').scrollTop = 0;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function nextSlide() {
+      if (currentSlide === 7) {
+        if (!submitQuiz()) return;
+        currentSlide = 8;
+        showResults();
+        sendResultsByEmail();
+        updateSlide();
+        return;
+      }
+      if (currentSlide < totalSlides - 1) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide === 8) {
+        // Don't go back from results
+        return;
+      }
+      if (currentSlide > 0) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    // ── Capitalize Name ──
+    function capitalizeName(name) {
+      return name.trim().split(/\s+/).map(w =>
+        w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+      ).join(' ');
+    }
+
+    // ── Send Email via FormSubmit ──
+    function sendResultsByEmail() {
+      const answers = quizQuestions.map((q, i) => {
+        const selected = quizAnswers[i];
+        const isCorrect = selected === q.answer;
+        return `P${i+1}: ${q.q}\nRespuesta: ${q.opts[selected]} ${isCorrect ? '✓' : '✗ (Correcta: ' + q.opts[q.answer] + ')'}`;
+      }).join('\n\n');
+
+      const body = `RESULTADOS DE CAPACITACIÓN GIP\n\nPuntaje: ${quizScore}/10\nFecha: ${new Date().toLocaleDateString('es-CO')}\n\n${answers}`;
+
+      // Use FormSubmit.co for serverless email
+      const formData = new FormData();
+      formData.append('_subject', `Resultado Capacitación GIP - ${quizScore}/10 - ${new Date().toLocaleDateString('es-CO')}`);
+      formData.append('message', body);
+      formData.append('_captcha', 'false');
+      formData.append('_template', 'box');
+
+      fetch('https://formsubmit.co/ajax/informes.serviplagas@gmail.com', {
+        method: 'POST',
+        body: formData
+      }).catch(() => {
+        // Silent fail — fallback is certificate download
+      });
+    }
+
+    // ── Generate PDF Certificate ──
+    function generateCertificate() {
+      const nameInput = document.getElementById('fullName').value;
+      if (!nameInput.trim()) {
+        alert('Por favor ingrese su nombre completo.');
+        return;
+      }
+
+      const name = capitalizeName(nameInput);
+
+      // Load logo first, then generate PDF
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const logoData = canvas.toDataURL('image/png');
+        buildCertPDF(name, logoData);
+      };
+      img.onerror = function() {
+        // If logo fails to load, generate without it
+        buildCertPDF(name, null);
+      };
+      img.src = 'logo.png';
+    }
+
+    function buildCertPDF(name, logoData) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+      const w = doc.internal.pageSize.getWidth();
+      const h = doc.internal.pageSize.getHeight();
+
+      // Border
+      doc.setDrawColor(26, 86, 50);
+      doc.setLineWidth(2);
+      doc.rect(10, 10, w - 20, h - 20);
+      doc.setLineWidth(0.5);
+      doc.rect(14, 14, w - 28, h - 28);
+
+      // Decorative corners
+      doc.setFillColor(26, 86, 50);
+      const cornerSize = 8;
+      // Top-left
+      doc.rect(10, 10, cornerSize, 2, 'F');
+      doc.rect(10, 10, 2, cornerSize, 'F');
+      // Top-right
+      doc.rect(w - 10 - cornerSize, 10, cornerSize, 2, 'F');
+      doc.rect(w - 12, 10, 2, cornerSize, 'F');
+      // Bottom-left
+      doc.rect(10, h - 12, cornerSize, 2, 'F');
+      doc.rect(10, h - 10 - cornerSize, 2, cornerSize, 'F');
+      // Bottom-right
+      doc.rect(w - 10 - cornerSize, h - 12, cornerSize, 2, 'F');
+      doc.rect(w - 12, h - 10 - cornerSize, 2, cornerSize, 'F');
+
+      // Logo
+      if (logoData) {
+        doc.addImage(logoData, 'PNG', w / 2 - 10, 22, 20, 20);
+      }
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(26, 86, 50);
+      doc.text('SERVIPLAGAS', w / 2, 50, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text('Control Integrado de Plagas', w / 2, 56, { align: 'center' });
+
+      // Line separator
+      doc.setDrawColor(240, 165, 0);
+      doc.setLineWidth(1);
+      doc.line(w / 2 - 40, 61, w / 2 + 40, 61);
+
+      // Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(28);
+      doc.setTextColor(26, 86, 50);
+      doc.text('CERTIFICADO', w / 2, 74, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(12);
+      doc.setTextColor(80);
+      doc.text('Se otorga el presente certificado a:', w / 2, 84, { align: 'center' });
+
+      // Name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(26);
+      doc.setTextColor(26, 86, 50);
+      doc.text(name, w / 2, 98, { align: 'center' });
+
+      // Decorative line under name
+      const nameWidth = doc.getTextWidth(name);
+      doc.setDrawColor(240, 165, 0);
+      doc.setLineWidth(0.5);
+      doc.line(w / 2 - nameWidth / 2 - 5, 102, w / 2 + nameWidth / 2 + 5, 102);
+
+      // Body text
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.setTextColor(80);
+      const bodyLines = [
+        'Por haber completado satisfactoriamente el programa de capacitación en',
+        'Gestión Integrada de Plagas (GIP) de Serviplagas.',
+      ];
+      bodyLines.forEach((line, i) => {
+        doc.text(line, w / 2, 114 + (i * 7), { align: 'center' });
+      });
+
+      // Date
+      const fecha = new Date().toLocaleDateString('es-CO', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(`Fecha de expedición: ${fecha}`, w / 2, 138, { align: 'center' });
+
+      // Also append name to the email
+      const formData = new FormData();
+      formData.append('_subject', `Certificado GIP - ${name} - ${quizScore}/10`);
+      formData.append('message', `CERTIFICADO GENERADO\n\nNombre: ${name}\nPuntaje: ${quizScore}/10\nFecha: ${fecha}`);
+      formData.append('_captcha', 'false');
+      formData.append('_template', 'box');
+
+      fetch('https://formsubmit.co/ajax/informes.serviplagas@gmail.com', {
+        method: 'POST',
+        body: formData
+      }).catch(() => {});
+
+      // Save
+      doc.save(`Certificado_GIP_${name.replace(/\s+/g, '_')}.pdf`);
+    }
+
+    // ── Init ──
+    renderQuiz();
+    updateSlide();
+  </script>
+</body>
+</html>
